@@ -1,49 +1,19 @@
 const globalActions = document.getElementsByTagName('body')
 const noteSearchBox = document.getElementById('note-search-box')
-const arrContainer = document.getElementById('notes-array')
-const addNoteBtn = document.getElementById('add-note-btn')
+const notesContainer = document.getElementById('notes-array')
+const foldersContainer = document.getElementById('folders-array')
+const tabsContainer = document.getElementById('tabs-container')
+const tabsRow = document.getElementById('tabs-row')
+let addNoteBtn = document.getElementById('add-note-btn')
+let addFolderBtn = document.getElementById('add-folder-btn')
+let tempNoteValue = ''
+let tempFolderValue = ''
+let currentTab = -1
+
 let msgSeen = 0
-globalActions[0].addEventListener('click',() => {
-  let msg = ''
-  try{
-    msg = document.getElementById('success-msg')
-  } catch(err){
-    console.log(err)
-  }
-  if(msg && !msgSeen) {
-    msgSeen = 1
-  } else if(!msg && msgSeen === 1){
-    console.log('msg ', msgSeen, msg)
-    msgSeen = 0
-  } else {
-    document.getElementById('success-msg').parentElement.removeChild(msg)
-    msg = ''
-  }
-})
 
-let noteElements = Array.from([1,2,3],(_,i) =>{
-  return(`<div id=${'note-' + i} class='note-container'>
-    <span>
-      Array Methods ${i+1}
-      <button id=${'del-' + i} class='delete-btn'>-</button>
-      <button id=${'open-' + i} class='open-btn'>&and;</button>
-      <button id=${'close-' + i} class='close-btn hidden'>&or;</button>
-    </span>
-    <div id=${'note-details-' + i}></div>
-  </div>`)}
-)
-
-arrContainer.innerHTML = noteElements.join('')
-
-const openButtons = document.getElementsByClassName('open-btn')
-const closeButtons = document.getElementsByClassName('close-btn')
-const deleteButtons = document.getElementsByClassName('delete-btn')
-
-const currentNoteValue = 'TEST A NOTE BODY.'
-let tempNoteValue = currentNoteValue
-
-var currentNoteElement = `
-<div id='note-container'>
+var currentNoteElement = (tempNoteValues,id) => `
+<div id='note-container-${id}'>
   <div id='note-text' class=''>${tempNoteValue}</div>
   <button id='note-edit-btn' class=''>edit</button>
   <div>
@@ -56,25 +26,45 @@ var currentNoteElement = `
     <button id='note-save-btn' class='hidden'>save</button>
   </div>
 </div>`
-const toggleNotesBody = () => {
-  document.getElementById('note-text').classList.toggle('hidden')
-  document.getElementById('note-edit-btn').classList.toggle('hidden')
-  document.getElementById('note-cancel-btn').classList.toggle('hidden')
-  document.getElementById('note-field').classList.toggle('hidden')
-  document.getElementById('note-save-btn').classList.toggle('hidden')
+
+const setTabs = (id, item) => {
+  const tabElements = fetch('http://localhost:3000/tabs', {
+    method: 'POST',
+    body: JSON.stringify({
+      "note_id": id, 
+      "title": item.title
+    }),
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  }).then(res=> res.json()).then(tabs=> {
+    const elements = tabs.map(tab => {
+      console.log('tabs', tab.note_id === id)
+
+      return (`
+        <div id="tabs-${tab.note_id}" class=${tab.note_id === id ? 'selected' : 'default-tab'}>${tab.title}</div>
+      `)}).join('')
+    return elements
+  })
+  console.log('tabElements', tabElements)
+  return tabElements
 }
 
-const openNote = (id) => {
+const openNote = async (item, button, openButtons, deleteButtons, addNoteBtn) => {
   addNoteBtn.classList.add('hidden')
-  console.log('id is: ',id)
+  tempNoteValue = item.content
+  console.log('button: ',button)
+  const noteContainer = document.getElementById('note-container')
+  noteContainer.classList.remove('hidden')
+  console.log('currentNote', item.content)
+  tabsRow.classList.remove('hidden')
+  const tabs = await setTabs(button.id.split('-')[1], item)
+  console.log('tabs', tabs)
+  tabsContainer.innerHTML = tabs
   for(let i = 0; i < openButtons.length;  i++){
-    const currentNote = document.getElementById('note-details-'+i)
-    if(i === id) {
-      console.log('ran1', closeButtons[id].classList)
-      closeButtons[id].classList.remove('hidden')
-      openButtons[id].classList.add('hidden')
-      console.log('ran2', closeButtons[id].classList)
-      currentNote.innerHTML = currentNoteElement
+    if(openButtons[i].id === button.id) {
+      noteContainer.innerHTML = currentNoteElement(tempNoteValue, button.id)
+      console.log(noteContainer.innerHTML)
       const editButton = document.getElementById('note-edit-btn')
       editButton.addEventListener('click', (e) => {
         e.preventDefault()
@@ -98,48 +88,158 @@ const openNote = (id) => {
         e.preventDefault();
         tempNoteValue = e.target.value
       })
-    } else {
-      openButtons[i].classList.remove('hidden')
-      closeButtons[i].classList.add('hidden')
-      currentNote.innerHTML = ''
     }
   }
 }
 
-for(let i = 0; i < openButtons.length;  i++){
-  (function(idx){
-    openButtons[idx].addEventListener('click',function(event) {
-      event.preventDefault();
-      openNote(i)
-    })
-    closeButtons[idx].addEventListener('click',function(event) {
-      event.preventDefault();
-      openButtons[idx].classList.toggle('hidden')
-      closeButtons[idx].classList.toggle('hidden')
-      const currentNote = document.getElementById('note-details-'+i)
-      currentNote.innerHTML = ''
-      addNoteBtn.classList.remove('hidden')
-    })
-    deleteButtons[i].addEventListener('click', function(event){
-      event.preventDefault();
-      const remainingElements = noteElements.filter((element, idx) => i !== idx)
-      noteElements = [...remainingElements]
-      console.log('noteElements', noteElements)
-      arrContainer.innerHTML = noteElements.join('')
-    })
-    }
-  )(i)
+const getOpenButtons = (data) => {
+  console.log('openButtons',data)
+  const openButtons = document.getElementsByClassName('open-btn')
+  const deleteButtons = document.getElementsByClassName('delete-btn') 
+  addNoteBtn = document.getElementById('add-note-btn')
+
+  console.log('notesArr',openButtons)
+  for(let i = 0; i < openButtons.length;  i++){
+    (function(idx){
+      console.log('openButtons[i]: ',openButtons[idx])
+      openButtons[idx].addEventListener('click',function(event) {
+        event.preventDefault();
+        console.log('data[i]',data[i])
+        openNote(data[i],openButtons[i], openButtons, deleteButtons, addNoteBtn)
+      })
+
+      deleteButtons[i].addEventListener('click', function(event){
+        event.preventDefault();
+        const remainingElements = noteElements.filter((element, idx) => i !== idx)
+        noteElements = [...remainingElements]
+        console.log('noteElements', noteElements)
+        notesContainer.innerHTML = noteElements.join('')
+      })
+      }
+    )(i)
+  }
 }
 
-addNoteBtn.addEventListener('click', (e) => {
+const getNotes = (id) => {
+  fetch(`http://localhost:3000/notes/${id}`)
+  .then(res => res.json())
+  .then(data => {
+    notesContainer.innerHTML = noteElements(data)
+    getOpenButtons(data)
+  })
+}
+
+fetch('http://localhost:3000/folders')
+  .then((res) => res.json())
+  .then((data) => {
+    console.log('sent')
+    folders = [...data]
+    let folderElements = data.map((folder,i)=>{
+      return(
+        `<div>
+          <div id='${folder.id}' class='folder'>${folder.name}</div>
+        </div>`
+      )
+    })
+    foldersContainer.innerHTML = folderElements.join('') + '<div id="add-folder-container"><button id="add-folder-btn">+</button></div>'
+    const folderItems = document.getElementsByClassName('folder')
+    for(let i = 0; i < folderItems.length; i++){
+      folderItems[i].addEventListener('click', () => {
+        notesContainer.classList.remove('hidden')
+        getNotes(folderItems[i].id)
+      })
+    }
+    addFolderBtn = document.getElementById('add-folder-btn')
+    addFolderBtn.addEventListener('click', (e)=> {
+      const addFolderContainer = document.getElementById('add-folder-container')
+      addFolderContainer.innerHTML = `<div><input id='add-folder-input' value=''>${tempFolderValue}</input><button id='folder-save-btn'>Save</button></div>`
+      const addFolderInput = document.getElementById('add-folder-input')
+      const folderSaveBtn = document.getElementById('folder-save-btn')
+      console.log(addFolderInput, folderSaveBtn)
+      addFolderInput.addEventListener('input', (e) => {
+        tempFolderValue = e.target.value;
+      })
+      folderSaveBtn.addEventListener('click', (e) => {
+        const body = {"folderName": tempFolderValue}
+        fetch('http://localhost:3000/folders',{
+          method: 'POST',
+          body: JSON.stringify(body),
+          mode: 'cors',
+          headers: {
+            "Content-Type": "application/json"
+          }
+        }).then((res) => res.json())
+        .then(data=> {
+          [...data]
+          let folderElements = data.map((folder,i)=>{
+            return(
+              `<div>
+                <div id='${folder.id}' class='folder'>${folder.name}</div>
+              </div>`
+            )
+          })
+          foldersContainer.innerHTML = folderElements.join('') + '<div id="add-folder-container"><button id="add-folder-btn">+</button></div>'
+        })
+      })
+    })
+  })
+
+globalActions[0].addEventListener('click',() => {
+  let msg = ''
+  try{
+    msg = document.getElementById('success-msg')
+  } catch(err){
+    console.log(err)
+  }
+  try {
+    if(msg && !msgSeen) {
+      msgSeen = 1
+    } else if(!msg && msgSeen === 1){
+      console.log('msg ', msgSeen, msg)
+      msgSeen = 0
+    } else {
+      document.getElementById('success-msg').parentElement.removeChild(msg)
+      msg = ''
+    }
+  } catch(err){
+    console.log(err)
+  }
+})
+
+let noteElements = (data) => {
+  let elements = data.map((item,i) => {
+    return(`<div id=${'note-' + item.id} class='note-container'>
+      <span>
+        <button id=${'open-'+item.id} class='open-btn'>${item.title}</button>
+        <button id=${'del-' + item.id} class='delete-btn'>-</button>
+      </span>
+    </div>`)
+}).join('')
+elements += '<div><button id="add-note-btn">+</button></div>'
+
+return (`<div>${elements}</div>`)
+}
+
+
+
+
+
+const toggleNotesBody = () => {
+  document.getElementById('note-text').classList.toggle('hidden')
+  document.getElementById('note-edit-btn').classList.toggle('hidden')
+  document.getElementById('note-cancel-btn').classList.toggle('hidden')
+  document.getElementById('note-field').classList.toggle('hidden')
+  document.getElementById('note-save-btn').classList.toggle('hidden')
+}
+
+addNoteBtn?.addEventListener('click', (e) => {
   const addNoteTitle = document.getElementById('add-note-title')
-  console.log(e)
   addNoteBtn.classList.add('hidden')
   addNoteTitle.classList.remove('hidden')
-  arrContainer.classList.add('hidden')
+  notesContainer.classList.add('hidden')
   noteSearchBox.classList.add('hidden')
   const addNoteContainer = document.getElementById('add-note-container')
-  addNoteContainer.innerHTML = currentNoteElement
+  addNoteContainer.innerHTML = currentNoteElement()
   toggleNotesBody()
   const editNoteUpdate = document.getElementById('note-field')
   editNoteUpdate.addEventListener('input', (e) => {
@@ -155,7 +255,7 @@ addNoteBtn.addEventListener('click', (e) => {
     })
     addNoteBtn.classList.remove('hidden')
     addNoteTitle.classList.add('hidden')
-    arrContainer.classList.remove('hidden')
+    notesContainer.classList.remove('hidden')
     noteSearchBox.classList.remove('hidden')
   })
   const cancelButton = document.getElementById('note-cancel-btn')
@@ -164,7 +264,7 @@ addNoteBtn.addEventListener('click', (e) => {
     addNoteContainer.innerHTML = ''
     addNoteBtn.classList.remove('hidden')
     addNoteTitle.classList.add('hidden')
-    arrContainer.classList.remove('hidden')
+    notesContainer.classList.remove('hidden')
     noteSearchBox.classList.remove('hidden')
   })
 })

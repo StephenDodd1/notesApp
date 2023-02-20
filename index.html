@@ -17,17 +17,36 @@
       <h3>Add a new note</h3>
     </div>
   </div>
-  <div id="notes-array">
-    <div>
-      <span>
-        Loading notes
-        <button>-</button>
-      </span>
+  <div id="content-row">
+    <div id="folders-array">
+      <div>
+        <span>
+          Loading folders
+          <button>-</button>
+        </span>
+      </div>
     </div>
-  </div>
-  <div>
-    <button id='add-note-btn'>+</button>
-    <div id="add-note-container">
+    <div id="notes-array" class="hidden">
+      <div>
+        <span>
+          Loading notes
+          <button>-</button>
+        </span>
+      </div>
+    </div>
+    <div id="content-box">
+      <div id="tabs-row" class="hidden">
+        <div id="tabs-container" >
+          <div class="default-tab">+ Open a new file</div>
+        </div>
+      </div>
+      <div id="note-container" class="hidden">
+        <div>
+          <span>
+            Loading notes
+          </span>
+        </div>
+      </div>
     </div>
   </div>
 </body>
